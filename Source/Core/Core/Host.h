@@ -76,4 +76,9 @@ bool Host_UpdateDiscordPresenceRaw(const std::string& details = {}, const std::s
                                    const int64_t end_timestamp = 0, const int party_size = 0,
                                    const int party_max = 0);
 
+// Request the host to boot a different game. This stops the current emulation and starts
+// a new game from the specified path. Returns true if the request was accepted.
+// Note: This is asynchronous - the actual boot happens after returning from this call.
+bool Host_RequestBootGame(const std::string& path);
+
 std::unique_ptr<GBAHostInterface> Host_CreateGBAHost(std::weak_ptr<HW::GBA::Core> core);

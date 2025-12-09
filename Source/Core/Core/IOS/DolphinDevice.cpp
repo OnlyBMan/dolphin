@@ -20,6 +20,7 @@
 #include "Core/HW/Memmap.h"
 #include "Core/Host.h"
 #include "Core/System.h"
+#include "DiscIO/Volume.h"
 
 namespace IOS::HLE
 {
@@ -37,6 +38,7 @@ enum
   IOCTL_DOLPHIN_DISCORD_SET_PRESENCE = 0x08,
   IOCTL_DOLPHIN_DISCORD_RESET = 0x09,
   IOCTL_DOLPHIN_GET_SYSTEM_TIME = 0x0A,
+  IOCTL_DOLPHIN_LOAD_LIBRARY_GAME = 0x0B,
 
 };
 
@@ -212,6 +214,55 @@ IPCReply ResetDiscord(const IOCtlVRequest& request)
   return IPCReply(IPC_SUCCESS);
 }
 
+
+IPCReply LoadLibraryGameImpl(Core::System& system, const IOCtlVRequest& request)
+{
+  if (!request.HasNumberOfValidVectors(1, 0))
+    return IPCReply(IPC_EINVAL);
+
+  auto& memory = system.GetMemory();
+  const std::string path =
+      memory.GetString(request.in_vectors[0].address, request.in_vectors[0].size);
+
+  INFO_LOG_FMT(IOS, "LoadLibraryGame: Received path: {}", path);
+
+  if (path.empty())
+  {
+    WARN_LOG_FMT(IOS, "LoadLibraryGame called with empty path");
+    return IPCReply(IPC_EINVAL);
+  }
+
+  // Verify the file exists before attempting to load it
+  if (!File::Exists(path))
+  {
+    WARN_LOG_FMT(IOS, "LoadLibraryGame: File does not exist: {}", path);
+    return IPCReply(IPC_ENOENT);
+  }
+
+  INFO_LOG_FMT(IOS, "LoadLibraryGame: File exists, validating disc image");
+
+  // Validate the disc image can be opened
+  auto volume = DiscIO::CreateVolume(path);
+  if (!volume)
+  {
+    WARN_LOG_FMT(IOS, "LoadLibraryGame: Failed to open disc image: {}", path);
+    return IPCReply(IPC_EINVAL);
+  }
+
+  // Request the host to boot the new game
+  // This will stop the current emulation and start the new game
+  INFO_LOG_FMT(IOS, "LoadLibraryGame: Requesting host to boot game: {}", path);
+  if (!Host_RequestBootGame(path))
+  {
+    WARN_LOG_FMT(IOS, "LoadLibraryGame: Host rejected boot request for: {}", path);
+    return IPCReply(IPC_EACCES);
+  }
+
+  INFO_LOG_FMT(IOS, "LoadLibraryGame: Boot request accepted for: {}", path);
+  return IPCReply(IPC_SUCCESS);
+}
+
+
 }  // namespace
 
 IPCReply DolphinDevice::GetElapsedTime(const IOCtlVRequest& request) const
@@ -295,6 +346,8 @@ std::optional<IPCReply> DolphinDevice::IOCtlV(const IOCtlVRequest& request)
     return ResetDiscord(request);
   case IOCTL_DOLPHIN_GET_SYSTEM_TIME:
     return GetSystemTime(request);
+  case IOCTL_DOLPHIN_LOAD_LIBRARY_GAME:
+    return LoadLibraryGameImpl(GetSystem(), request);
 
   default:
     return IPCReply(IPC_EINVAL);

@@ -203,6 +203,12 @@ std::unique_ptr<GBAHostInterface> Host_CreateGBAHost(std::weak_ptr<HW::GBA::Core
   return nullptr;
 }
 
+bool Host_RequestBootGame(const std::string& path)
+{
+  // TODO: Implement game boot request for Android
+  return false;
+}
+
 static bool MsgAlert(const char* caption, const char* text, bool yes_no, Common::MsgType style)
 {
   JNIEnv* env = IDCache::GetEnvForThread();

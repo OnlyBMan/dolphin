@@ -734,6 +734,7 @@ void MainWindow::ConnectRenderWidget()
 void MainWindow::ConnectHost()
 {
   connect(Host::GetInstance(), &Host::RequestStop, this, &MainWindow::RequestStop);
+  connect(Host::GetInstance(), &Host::RequestBootGame, this, &MainWindow::OnRequestBootGame);
 }
 
 void MainWindow::ConnectStack()
@@ -889,30 +890,53 @@ void MainWindow::TogglePause()
 void MainWindow::OnStopComplete()
 {
   m_stop_requested = false;
-  HideRenderWidget(!m_exit_requested, m_exit_requested);
+
+  // For seamless game boot, don't hide the render widget and skip unnecessary updates
+  const bool seamless_boot = m_seamless_boot_in_progress;
+  m_seamless_boot_in_progress = false;
+
+  if (!seamless_boot)
+  {
+    HideRenderWidget(!m_exit_requested, m_exit_requested);
+
 #ifdef USE_DISCORD_PRESENCE
-  if (!m_netplay_dialog->isVisible())
-    Discord::UpdateDiscordPresence();
+    if (!m_netplay_dialog->isVisible())
+      Discord::UpdateDiscordPresence();
 #endif
 
-  SetFullScreenResolution(false);
+    SetFullScreenResolution(false);
 
-  if (m_exit_requested || Settings::Instance().IsBatchModeEnabled())
-  {
-    if (m_assembler_widget->ApplicationCloseRequest())
+    if (m_exit_requested || Settings::Instance().IsBatchModeEnabled())
     {
-      QGuiApplication::exit(0);
-    }
-    else
-    {
-      m_exit_requested = false;
+      if (m_assembler_widget->ApplicationCloseRequest())
+      {
+        QGuiApplication::exit(0);
+      }
+      else
+      {
+        m_exit_requested = false;
+      }
     }
   }
 
   // If the current emulation prevented the booting of another, do that now
   if (m_pending_boot != nullptr)
   {
-    StartGame(std::move(m_pending_boot));
+    if (seamless_boot)
+    {
+      // For seamless boot, we already have the render widget showing
+      // Boot directly without going through StartGame's checks
+      if (!BootManager::BootCore(m_system, std::move(m_pending_boot),
+                                 ::GetWindowSystemInfo(m_render_widget->windowHandle())))
+      {
+        ModalMessageBox::critical(this, tr("Error"), tr("Failed to init core"), QMessageBox::Ok);
+        HideRenderWidget();
+      }
+    }
+    else
+    {
+      StartGame(std::move(m_pending_boot));
+    }
     m_pending_boot.reset();
   }
 }
@@ -1793,6 +1817,24 @@ QSize MainWindow::sizeHint() const
 void MainWindow::OnBootGameCubeIPL(DiscIO::Region region)
 {
   StartGame(std::make_unique<BootParameters>(BootParameters::IPL{region}));
+}
+
+void MainWindow::OnRequestBootGame(const QString& path)
+{
+  // Seamless game boot - switch games without confirmation dialogs or window changes
+  if (!Core::IsUninitialized(m_system))
+  {
+    // Store the pending boot and flag this as a seamless switch
+    m_pending_boot = BootParameters::GenerateFromFile(path.toStdString());
+    m_seamless_boot_in_progress = true;
+
+    // Force stop without confirmation - the new game will boot in OnStopComplete
+    ForceStop();
+    return;
+  }
+
+  // Not currently running, just start normally
+  StartGame(path, ScanForSecondDisc::Yes);
 }
 
 void MainWindow::OnImportNANDBackup()

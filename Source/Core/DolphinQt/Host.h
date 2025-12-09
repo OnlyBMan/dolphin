@@ -38,6 +38,7 @@ public:
 signals:
   void RequestTitle(const QString& title);
   void RequestStop();
+  void RequestBootGame(const QString& path);
   void RequestRenderSize(int w, int h);
   void UpdateDisasmDialog();
   void JitCacheInvalidation();

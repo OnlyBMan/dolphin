@@ -198,6 +198,7 @@ private:
   void OnBootGameCubeIPL(DiscIO::Region region);
   void OnImportNANDBackup();
   void OnConnectWiiRemote(int id);
+  void OnRequestBootGame(const QString& path);
 
 #if defined(__unix__) || defined(__unix) || defined(__APPLE__)
   void OnSignal();
@@ -244,6 +245,7 @@ private:
   bool m_exit_requested = false;
   bool m_fullscreen_requested = false;
   bool m_is_screensaver_inhibited = false;
+  bool m_seamless_boot_in_progress = false;
   u32 m_state_slot = 1;
   std::unique_ptr<BootParameters> m_pending_boot;
 

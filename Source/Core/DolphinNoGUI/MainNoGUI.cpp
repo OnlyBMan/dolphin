@@ -154,6 +154,12 @@ std::unique_ptr<GBAHostInterface> Host_CreateGBAHost(std::weak_ptr<HW::GBA::Core
   return nullptr;
 }
 
+bool Host_RequestBootGame(const std::string& path)
+{
+  // TODO: Implement game boot request for NoGUI
+  return false;
+}
+
 static std::unique_ptr<Platform> GetPlatform(const optparse::Values& options)
 {
   std::string platform_name = static_cast<const char*>(options.get("platform"));

@@ -224,6 +224,10 @@ private:
   TitleContext m_title_context{};
 
   friend class ESDevice;
+public:
+  // Getter for m_title_context
+  const TitleContext& GetTitleContext() const { return m_title_context; }
+  TitleContext& GetTitleContext() { return m_title_context; }
 };
 
 class ESDevice final : public EmulationDevice

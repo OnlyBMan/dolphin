@@ -105,4 +105,8 @@ std::unique_ptr<GBAHostInterface> Host_CreateGBAHost(std::weak_ptr<HW::GBA::Core
 {
   return nullptr;
 }
+bool Host_RequestBootGame(const std::string& path)
+{
+  return false;
+}
 // End stubs to satisfy Core dependencies
